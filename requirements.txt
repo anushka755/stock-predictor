@@ -4,3 +4,4 @@ pandas
 ta
 joblib
 scikit-learn
+joblib
