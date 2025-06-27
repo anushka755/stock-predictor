@@ -67,6 +67,8 @@ def load_and_process_data(ticker, start, end):
 
     return data.dropna()
 
+features = ['Close', 'MA5', 'MA10', 'Volume_Change', 'RSI', 'MACD', 'MACD_Signal', 'BB_Width']
+
 # ----------------- TAB 1: Predict -----------------
 with tab1:
     st.subheader("📊 Predict Stock Movement")
@@ -80,16 +82,28 @@ with tab1:
             st.line_chart(data[['Close', 'MA5', 'MA10']])
             latest = data.iloc[-1:]
 
-            features = ['Close', 'MA5', 'MA10', 'Volume_Change', 'RSI', 'MACD', 'MACD_Signal', 'BB_Width']
-            model = joblib.load("stock_model.pkl")
-            prediction = model.predict(latest[features])[0]
-            prob = model.predict_proba(latest[features])[0][prediction]
-
-            st.subheader("Prediction Result")
-            if prediction == 1:
-                st.success(f"⬆️ Stock likely to go UP ({prob:.2%} confidence)")
+            # Sanity check for features
+            if latest[features].isnull().any().any():
+                st.error("Data contains NaN values. Unable to predict.")
             else:
-                st.warning(f"⬇️ Stock likely to go DOWN ({prob:.2%} confidence)")
+                try:
+                    model = joblib.load("stock_model.pkl")
+                except Exception as e:
+                    st.error(f"Error loading model: {e}")
+                    st.stop()
+
+                try:
+                    prediction = model.predict(latest[features])[0]
+                    prob = model.predict_proba(latest[features])[0][prediction]
+                except Exception as e:
+                    st.error(f"Prediction error: {e}")
+                    st.stop()
+
+                st.subheader("Prediction Result")
+                if prediction == 1:
+                    st.success(f"⬆️ Stock likely to go UP ({prob:.2%} confidence)")
+                else:
+                    st.warning(f"⬇️ Stock likely to go DOWN ({prob:.2%} confidence)")
 
 # ----------------- TAB 2: Backtest -----------------
 with tab2:
@@ -100,14 +114,27 @@ with tab2:
     data = load_and_process_data(ticker, start, end)
 
     if not data.empty:
-        features = ['Close', 'MA5', 'MA10', 'Volume_Change', 'RSI', 'MACD', 'MACD_Signal', 'BB_Width']
         data['Target'] = (data['Close'].shift(-1) > data['Close']).astype(int)
-        model = joblib.load("stock_model.pkl")
-        data['Prediction'] = model.predict(data[features])
-        accuracy = (data['Prediction'] == data['Target']).mean()
 
-        st.metric("Backtest Accuracy", f"{accuracy:.2%}")
-        st.line_chart(data[['Close']])
+        # Sanity check
+        if data[features].isnull().any().any():
+            st.error("Data contains NaN values. Cannot perform backtest.")
+        else:
+            try:
+                model = joblib.load("stock_model.pkl")
+            except Exception as e:
+                st.error(f"Error loading model: {e}")
+                st.stop()
+
+            try:
+                data['Prediction'] = model.predict(data[features])
+                accuracy = (data['Prediction'] == data['Target']).mean()
+            except Exception as e:
+                st.error(f"Prediction error: {e}")
+                st.stop()
+
+            st.metric("Backtest Accuracy", f"{accuracy:.2%}")
+            st.line_chart(data[['Close']])
 
 # ----------------- TAB 3: Chatbot -----------------
 with tab3:
