@@ -1,8 +1,9 @@
 streamlit
-yfinance
+xgboost==1.7.6
+scikit-learn
 pandas
+numpy
+yfinance
+matplotlib
 ta
 joblib
-scikit-learn
-joblib
-xgboost==1.7.6
